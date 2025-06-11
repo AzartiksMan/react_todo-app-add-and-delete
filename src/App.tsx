@@ -11,10 +11,23 @@ import {
 } from './api/todos';
 import { Todo } from './types/Todo';
 import cn from 'classnames';
+import { ErrorNotification } from './components/ErrorNotification';
+
+const prepareTodoList = (todoData: Todo[], filter: string): Todo[] => {
+  return todoData.filter(todo => {
+    switch (filter) {
+      case 'active':
+        return !todo.completed;
+      case 'completed':
+        return todo.completed;
+      default:
+        return true;
+    }
+  });
+};
 
 export const App: React.FC = () => {
   const [todoData, setTodoData] = useState<Todo[]>([]);
-  const [todoList, setTodoList] = useState<Todo[]>(todoData);
 
   const [todoTitle, setTodoTitle] = useState('');
 
@@ -37,44 +50,15 @@ export const App: React.FC = () => {
   const isAllTodosCompleted =
     todoData.length > 0 && todoData.every(todo => todo.completed);
 
-  const createErrorMessage = (message: string) => {
-    setErrorMessage(message);
-
-    setTimeout(() => {
-      setErrorMessage('');
-    }, 3000);
-  };
-
   useEffect(() => {
     getTodos()
       .then(setTodoData)
-      .catch(() => createErrorMessage('Unable to load todos'));
+      .catch(() => setErrorMessage('Unable to load todos'));
   }, []);
-
-  useEffect(() => {
-    setTodoList(todoData);
-  }, [todoData]);
-
-  const handleFilter = (filter: string) => {
-    setFilterParam(filter);
-
-    setTodoList(
-      todoData.filter(todo => {
-        switch (filter) {
-          case 'active':
-            return !todo.completed;
-          case 'completed':
-            return todo.completed;
-          default:
-            return true;
-        }
-      }),
-    );
-  };
 
   const handleSubmit = (title: string) => {
     if (!title) {
-      createErrorMessage('Title should not be empty');
+      setErrorMessage('Title should not be empty');
 
       return;
     }
@@ -94,7 +78,7 @@ export const App: React.FC = () => {
         setTodoData(current => [...current, todo]);
         setTodoTitle('');
       })
-      .catch(() => createErrorMessage('Unable to add a todo'))
+      .catch(() => setErrorMessage('Unable to add a todo'))
       .finally(() => {
         setIsInputActive(true);
         setTempTodo(null);
@@ -109,7 +93,7 @@ export const App: React.FC = () => {
 
     deleteTodo(id)
       .then(() => setTodoData(cur => cur.filter(todo => todo.id !== id)))
-      .catch(() => createErrorMessage('Unable to delete a todo'))
+      .catch(() => setErrorMessage('Unable to delete a todo'))
       .finally(() => {
         setDeletedTodo(cur => cur.filter(curId => curId !== id));
         setTimeout(() => {
@@ -134,7 +118,7 @@ export const App: React.FC = () => {
         const isSomeFailed = results.some(r => r.status === 'rejected');
 
         if (isSomeFailed) {
-          createErrorMessage('Unable to delete a todo');
+          setErrorMessage('Unable to delete a todo');
         }
 
         setTodoData(cur => cur.filter(todo => !succesIds.includes(todo.id)));
@@ -174,6 +158,8 @@ export const App: React.FC = () => {
       return updated;
     });
   };
+
+  const todoList = prepareTodoList(todoData, filterParam);
 
   if (!USER_ID) {
     return <UserWarning />;
@@ -310,20 +296,21 @@ export const App: React.FC = () => {
           )}
         </section>
 
-        {todoData.length > 0 && (
+        {(todoData.length > 0 || activeTodos > 0) && (
           <footer className="todoapp__footer" data-cy="Footer">
             <span className="todo-count" data-cy="TodosCounter">
               {`${activeTodos} items left`}
             </span>
 
             <nav className="filter" data-cy="Filter">
+              {/* створити массив с обьектами (стринга, енем.значення) orr just enum*/}
               <a
                 href="#/"
                 className={cn('filter__link', {
                   selected: filterParam === 'all',
                 })}
                 data-cy="FilterLinkAll"
-                onClick={() => handleFilter('all')}
+                onClick={() => setFilterParam('all')}
               >
                 All
               </a>
@@ -334,7 +321,7 @@ export const App: React.FC = () => {
                   selected: filterParam === 'active',
                 })}
                 data-cy="FilterLinkActive"
-                onClick={() => handleFilter('active')}
+                onClick={() => setFilterParam('active')}
               >
                 Active
               </a>
@@ -345,7 +332,7 @@ export const App: React.FC = () => {
                   selected: filterParam === 'completed',
                 })}
                 data-cy="FilterLinkCompleted"
-                onClick={() => handleFilter('completed')}
+                onClick={() => setFilterParam('completed')}
               >
                 Completed
               </a>
@@ -364,24 +351,10 @@ export const App: React.FC = () => {
         )}
       </div>
 
-      <div
-        data-cy="ErrorNotification"
-        className={cn(
-          'notification',
-          'is-danger',
-          'is-light',
-          'has-text-weight-normal',
-          { hidden: !errorMessage },
-        )}
-      >
-        <button
-          data-cy="HideErrorButton"
-          type="button"
-          className="delete"
-          onClick={() => setErrorMessage('')}
-        />
-        {errorMessage}
-      </div>
+      <ErrorNotification
+        errorMessage={errorMessage}
+        setErrorMessage={setErrorMessage}
+      />
     </div>
   );
 };
