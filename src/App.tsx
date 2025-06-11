@@ -1,24 +1,22 @@
 /* eslint-disable jsx-a11y/control-has-associated-label */
 import React, { useEffect, useRef, useState } from 'react';
-import { UserWarning } from './UserWarning';
-import {
-  deleteTodo,
-  getTodos,
-  // patchTodo,
-  postTodo,
-  USER_ID,
-} from './api/todos';
-import { Todo } from './types/Todo';
-import cn from 'classnames';
-import { ErrorNotification } from './components/ErrorNotification';
-import { TodoList } from './components/TodoList';
+import * as todosApi from './api/todos';
 
-const prepareTodoList = (todoData: Todo[], filter: string): Todo[] => {
+import { FilterParams } from './types/FilterParams';
+
+import { UserWarning } from './UserWarning';
+import { Todo } from './types/Todo';
+import { AppHeader } from './components/AppHeader';
+import { TodoList } from './components/TodoList';
+import { AppFooter } from './components/AppFooter';
+import { ErrorNotification } from './components/ErrorNotification';
+
+const prepareTodoList = (todoData: Todo[], filter: FilterParams): Todo[] => {
   return todoData.filter(todo => {
     switch (filter) {
-      case 'active':
+      case FilterParams.Active:
         return !todo.completed;
-      case 'completed':
+      case FilterParams.Completed:
         return todo.completed;
       default:
         return true;
@@ -32,7 +30,7 @@ export const App: React.FC = () => {
 
   const [todoTitle, setTodoTitle] = useState('');
 
-  const [filterParam, setFilterParam] = useState('all');
+  const [filterParam, setFilterParam] = useState(FilterParams.All);
 
   const [isInputActive, setIsInputActive] = useState(true);
 
@@ -50,11 +48,13 @@ export const App: React.FC = () => {
     todoData.length > 0 && todoData.every(todo => todo.completed);
 
   useEffect(() => {
-    getTodos()
+    todosApi
+      .getTodos()
       .then(setTodoData)
       .catch(() => setErrorMessage('Unable to load todos'));
   }, []);
 
+  // Мастер, скажи чи виносить цей хендлер в компонент AppHeader (він спрацьовує на сабмит) чи залишать тут?
   const handleSubmit = (title: string) => {
     if (!title) {
       setErrorMessage('Title should not be empty');
@@ -65,14 +65,15 @@ export const App: React.FC = () => {
     setIsInputActive(false);
 
     const newTodo = {
-      userId: USER_ID,
+      userId: todosApi.USER_ID,
       title: title,
       completed: false,
     };
 
     setTempTodo({ id: 0, ...newTodo });
 
-    postTodo(newTodo)
+    todosApi
+      .postTodo(newTodo)
       .then(todo => {
         setTodoData(current => [...current, todo]);
         setTodoTitle('');
@@ -87,6 +88,7 @@ export const App: React.FC = () => {
       });
   };
 
+  // а это в компонент AppFooter ?
   const handleClearCompleted = () => {
     const completedIds = todoData
       .filter(todo => todo.completed)
@@ -94,7 +96,9 @@ export const App: React.FC = () => {
 
     setDeletedTodo(cur => [...cur, ...completedIds]);
 
-    Promise.allSettled(completedIds.map(id => deleteTodo(id).then(() => id)))
+    Promise.allSettled(
+      completedIds.map(id => todosApi.deleteTodo(id).then(() => id)),
+    )
       .then(results => {
         const succesIds = results
           .filter(r => r.status === 'fulfilled')
@@ -118,7 +122,7 @@ export const App: React.FC = () => {
 
   const todoList = prepareTodoList(todoData, filterParam);
 
-  if (!USER_ID) {
+  if (!todosApi.USER_ID) {
     return <UserWarning />;
   }
 
@@ -127,34 +131,14 @@ export const App: React.FC = () => {
       <h1 className="todoapp__title">todos</h1>
 
       <div className="todoapp__content">
-        <header className="todoapp__header">
-          <button
-            type="button"
-            className={cn('todoapp__toggle-all', {
-              active: isAllTodosCompleted,
-            })}
-            data-cy="ToggleAllButton"
-          />
-
-          <form
-            onSubmit={event => {
-              event.preventDefault();
-              handleSubmit(todoTitle.trim());
-            }}
-          >
-            <input
-              ref={inputRef}
-              data-cy="NewTodoField"
-              type="text"
-              className="todoapp__new-todo"
-              placeholder="What needs to be done?"
-              value={todoTitle}
-              onChange={event => setTodoTitle(event.target.value)}
-              autoFocus
-              disabled={!isInputActive}
-            />
-          </form>
-        </header>
+        <AppHeader
+          onSubmit={handleSubmit}
+          todoTitle={todoTitle}
+          setTodoTitle={setTodoTitle}
+          isInputActive={isInputActive}
+          inputRef={inputRef}
+          isAllTodosCompleted={isAllTodosCompleted}
+        />
 
         <TodoList
           todoList={todoList}
@@ -168,57 +152,13 @@ export const App: React.FC = () => {
         />
 
         {(todoData.length > 0 || activeTodos > 0) && (
-          <footer className="todoapp__footer" data-cy="Footer">
-            <span className="todo-count" data-cy="TodosCounter">
-              {`${activeTodos} items left`}
-            </span>
-
-            <nav className="filter" data-cy="Filter">
-              {/* створити массив с обьектами (стринга, енем.значення) orr just enum*/}
-              <a
-                href="#/"
-                className={cn('filter__link', {
-                  selected: filterParam === 'all',
-                })}
-                data-cy="FilterLinkAll"
-                onClick={() => setFilterParam('all')}
-              >
-                All
-              </a>
-
-              <a
-                href="#/active"
-                className={cn('filter__link', {
-                  selected: filterParam === 'active',
-                })}
-                data-cy="FilterLinkActive"
-                onClick={() => setFilterParam('active')}
-              >
-                Active
-              </a>
-
-              <a
-                href="#/completed"
-                className={cn('filter__link', {
-                  selected: filterParam === 'completed',
-                })}
-                data-cy="FilterLinkCompleted"
-                onClick={() => setFilterParam('completed')}
-              >
-                Completed
-              </a>
-            </nav>
-
-            <button
-              type="button"
-              className="todoapp__clear-completed"
-              data-cy="ClearCompletedButton"
-              disabled={!isCompletedTodos}
-              onClick={() => handleClearCompleted()}
-            >
-              Clear completed
-            </button>
-          </footer>
+          <AppFooter
+            handleClearCompleted={handleClearCompleted}
+            setFilterParam={setFilterParam}
+            filterParam={filterParam}
+            isCompletedTodos={isCompletedTodos}
+            activeTodos={activeTodos}
+          />
         )}
       </div>
 
