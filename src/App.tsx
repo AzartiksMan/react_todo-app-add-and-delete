@@ -1,4 +1,3 @@
-/* eslint-disable jsx-a11y/label-has-associated-control */
 /* eslint-disable jsx-a11y/control-has-associated-label */
 import React, { useEffect, useRef, useState } from 'react';
 import { UserWarning } from './UserWarning';
@@ -12,6 +11,7 @@ import {
 import { Todo } from './types/Todo';
 import cn from 'classnames';
 import { ErrorNotification } from './components/ErrorNotification';
+import { TodoList } from './components/TodoList';
 
 const prepareTodoList = (todoData: Todo[], filter: string): Todo[] => {
   return todoData.filter(todo => {
@@ -28,12 +28,11 @@ const prepareTodoList = (todoData: Todo[], filter: string): Todo[] => {
 
 export const App: React.FC = () => {
   const [todoData, setTodoData] = useState<Todo[]>([]);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const [todoTitle, setTodoTitle] = useState('');
 
   const [filterParam, setFilterParam] = useState('all');
-
-  const [errorMessage, setErrorMessage] = useState('');
 
   const [isInputActive, setIsInputActive] = useState(true);
 
@@ -88,20 +87,6 @@ export const App: React.FC = () => {
       });
   };
 
-  const handleDelete = (id: number) => {
-    setDeletedTodo(cur => [...cur, id]);
-
-    deleteTodo(id)
-      .then(() => setTodoData(cur => cur.filter(todo => todo.id !== id)))
-      .catch(() => setErrorMessage('Unable to delete a todo'))
-      .finally(() => {
-        setDeletedTodo(cur => cur.filter(curId => curId !== id));
-        setTimeout(() => {
-          inputRef.current?.focus();
-        }, 0);
-      });
-  };
-
   const handleClearCompleted = () => {
     const completedIds = todoData
       .filter(todo => todo.completed)
@@ -129,34 +114,6 @@ export const App: React.FC = () => {
           inputRef.current?.focus();
         }, 0);
       });
-  };
-
-  // const handleUpdate = () => {
-  //   if (false) {
-  //     createErrorMessage('Unable to update a todo');
-  //   }
-
-  //   patchTodo();
-  // };
-
-  const handleSwitchStatus = (currentId: number) => {
-    const index = todoData.findIndex(todo => todo.id === currentId);
-
-    const { id, userId, title, completed } = todoData[index];
-    const replacer = {
-      id,
-      userId,
-      title,
-      completed: completed ? false : true,
-    };
-
-    setTodoData(current => {
-      const updated = [...current];
-
-      updated.splice(index, 1, replacer);
-
-      return updated;
-    });
   };
 
   const todoList = prepareTodoList(todoData, filterParam);
@@ -199,102 +156,16 @@ export const App: React.FC = () => {
           </form>
         </header>
 
-        <section className="todoapp__main" data-cy="TodoList">
-          {todoList.map((todo: Todo) => {
-            const { id, title, completed } = todo;
-            const isOverlayActive = deletedTodo.includes(id);
-
-            return (
-              <div
-                key={id}
-                data-cy="Todo"
-                className={cn('todo', { completed: completed })}
-              >
-                <label className="todo__status-label">
-                  <input
-                    data-cy="TodoStatus"
-                    type="checkbox"
-                    className="todo__status"
-                    checked={completed}
-                    onClick={() => handleSwitchStatus(id)}
-                  />
-                </label>
-
-                {true ? (
-                  <>
-                    <span data-cy="TodoTitle" className="todo__title">
-                      {title}
-                    </span>
-
-                    <button
-                      type="button"
-                      className="todo__remove"
-                      data-cy="TodoDelete"
-                      onClick={() => handleDelete(id)}
-                    >
-                      ×
-                    </button>
-                  </>
-                ) : (
-                  // This form is shown instead of the title and remove button
-                  <form>
-                    <input
-                      data-cy="TodoTitleField"
-                      type="text"
-                      className="todo__title-field"
-                      placeholder="Empty todo will be deleted"
-                      value="Todo is being edited now"
-                    />
-                  </form>
-                )}
-
-                {/* overlay will cover the todo while it is being deleted or updated */}
-                {/* 'is-active' class puts this modal on top of the todo */}
-                <div
-                  data-cy="TodoLoader"
-                  className={cn('modal', 'overlay', {
-                    'is-active': isOverlayActive,
-                  })}
-                >
-                  <div className="modal-background has-background-white-ter" />
-                  <div className="loader" />
-                </div>
-              </div>
-            );
-          })}
-
-          {tempTodo && (
-            <div className="todo" data-cy="Todo">
-              <label className="todo__status-label">
-                <input
-                  data-cy="TodoStatus"
-                  type="checkbox"
-                  className="todo__status"
-                />
-              </label>
-
-              <span data-cy="TodoTitle" className="todo__title">
-                {tempTodo.title}
-              </span>
-
-              <button
-                type="button"
-                className="todo__remove"
-                data-cy="TodoDelete"
-              >
-                ×
-              </button>
-
-              <div
-                data-cy="TodoLoader"
-                className={cn('modal', 'overlay', 'is-active')}
-              >
-                <div className="modal-background has-background-white-ter" />
-                <div className="loader" />
-              </div>
-            </div>
-          )}
-        </section>
+        <TodoList
+          todoList={todoList}
+          todoData={todoData}
+          tempTodo={tempTodo}
+          deletedTodo={deletedTodo}
+          setTodoData={setTodoData}
+          setDeletedTodo={setDeletedTodo}
+          setErrorMessage={setErrorMessage}
+          inputRef={inputRef}
+        />
 
         {(todoData.length > 0 || activeTodos > 0) && (
           <footer className="todoapp__footer" data-cy="Footer">
