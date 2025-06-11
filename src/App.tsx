@@ -1,5 +1,4 @@
-/* eslint-disable jsx-a11y/control-has-associated-label */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as todosApi from './api/todos';
 
 import { FilterParams } from './types/FilterParams';
@@ -10,7 +9,9 @@ import { AppHeader } from './components/AppHeader';
 import { TodoList } from './components/TodoList';
 import { AppFooter } from './components/AppFooter';
 import { ErrorNotification } from './components/ErrorNotification';
+import { ErrorMessages } from './types/ErrorMessages';
 
+// чи виносить мені цю функцію у компонент AppFooter? (там де фильтрация)
 const prepareTodoList = (todoData: Todo[], filter: FilterParams): Todo[] => {
   return todoData.filter(todo => {
     switch (filter) {
@@ -26,7 +27,7 @@ const prepareTodoList = (todoData: Todo[], filter: FilterParams): Todo[] => {
 
 export const App: React.FC = () => {
   const [todoData, setTodoData] = useState<Todo[]>([]);
-  const [errorMessage, setErrorMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState(ErrorMessages.None);
 
   const [todoTitle, setTodoTitle] = useState('');
 
@@ -40,24 +41,31 @@ export const App: React.FC = () => {
 
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const activeTodos = todoData.filter(todo => !todo.completed).length;
+  // може обгорунть ці три змінні одним юз мемо? типу "const { activeTodos, isCompletedTodos, isAllTodosCompleted } = useMemo(() => {})"
 
-  const isCompletedTodos = todoData.some(todo => todo.completed);
+  const activeTodos = useMemo(() => {
+    return todoData.filter(todo => !todo.completed).length;
+  }, [todoData]);
 
-  const isAllTodosCompleted =
-    todoData.length > 0 && todoData.every(todo => todo.completed);
+  const isCompletedTodos = useMemo(() => {
+    return todoData.some(todo => todo.completed);
+  }, [todoData]);
+
+  const isAllTodosCompleted = useMemo(() => {
+    return todoData.length > 0 && todoData.every(todo => todo.completed);
+  }, [todoData]);
 
   useEffect(() => {
     todosApi
       .getTodos()
       .then(setTodoData)
-      .catch(() => setErrorMessage('Unable to load todos'));
+      .catch(() => setErrorMessage(ErrorMessages.OnGet));
   }, []);
 
-  // Мастер, скажи чи виносить цей хендлер в компонент AppHeader (він спрацьовує на сабмит) чи залишать тут?
+  // Мастер, скажи чи виносить цей хендлер в компонент AppHeader (він спрацьовує на сабмит) чи залишати в App?
   const handleSubmit = (title: string) => {
     if (!title) {
-      setErrorMessage('Title should not be empty');
+      setErrorMessage(ErrorMessages.OnEmptyTitle);
 
       return;
     }
@@ -78,7 +86,7 @@ export const App: React.FC = () => {
         setTodoData(current => [...current, todo]);
         setTodoTitle('');
       })
-      .catch(() => setErrorMessage('Unable to add a todo'))
+      .catch(() => setErrorMessage(ErrorMessages.OnPost))
       .finally(() => {
         setIsInputActive(true);
         setTempTodo(null);
@@ -107,7 +115,7 @@ export const App: React.FC = () => {
         const isSomeFailed = results.some(r => r.status === 'rejected');
 
         if (isSomeFailed) {
-          setErrorMessage('Unable to delete a todo');
+          setErrorMessage(ErrorMessages.OnDelete);
         }
 
         setTodoData(cur => cur.filter(todo => !succesIds.includes(todo.id)));
@@ -121,6 +129,7 @@ export const App: React.FC = () => {
   };
 
   const todoList = prepareTodoList(todoData, filterParam);
+  const shouldShowFooter = todoData.length > 0 || activeTodos > 0;
 
   if (!todosApi.USER_ID) {
     return <UserWarning />;
@@ -142,7 +151,6 @@ export const App: React.FC = () => {
 
         <TodoList
           todoList={todoList}
-          todoData={todoData}
           tempTodo={tempTodo}
           deletedTodo={deletedTodo}
           setTodoData={setTodoData}
@@ -151,7 +159,7 @@ export const App: React.FC = () => {
           inputRef={inputRef}
         />
 
-        {(todoData.length > 0 || activeTodos > 0) && (
+        {shouldShowFooter && (
           <AppFooter
             handleClearCompleted={handleClearCompleted}
             setFilterParam={setFilterParam}

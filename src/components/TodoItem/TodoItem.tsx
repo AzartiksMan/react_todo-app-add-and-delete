@@ -18,6 +18,7 @@ export const TodoItem: React.FC<Props> = ({
   handleSwitchStatus = () => {},
 }) => {
   const { id, completed, title } = todo;
+  const placeHolder = true; //цей функціонал буде реалізованно в наступній тасці
 
   return (
     <div data-cy="Todo" className={cn('todo', { completed: completed })}>
@@ -31,7 +32,7 @@ export const TodoItem: React.FC<Props> = ({
         />
       </label>
 
-      {true ? (
+      {placeHolder ? (
         <>
           <span data-cy="TodoTitle" className="todo__title">
             {title}

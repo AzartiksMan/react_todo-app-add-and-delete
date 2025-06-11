@@ -1,9 +1,10 @@
 import cn from 'classnames';
 import React, { useEffect } from 'react';
+import { ErrorMessages } from '../../types/ErrorMessages';
 
 interface Props {
   errorMessage: string;
-  setErrorMessage: (value: string) => void;
+  setErrorMessage: (value: ErrorMessages.None) => void;
 }
 
 export const ErrorNotification: React.FC<Props> = ({
@@ -16,7 +17,7 @@ export const ErrorNotification: React.FC<Props> = ({
     }
 
     const timer = setTimeout(() => {
-      setErrorMessage('');
+      setErrorMessage(ErrorMessages.None);
     }, 3000);
 
     return () => clearTimeout(timer);
@@ -37,7 +38,7 @@ export const ErrorNotification: React.FC<Props> = ({
         data-cy="HideErrorButton"
         type="button"
         className="delete"
-        onClick={() => setErrorMessage('')}
+        onClick={() => setErrorMessage(ErrorMessages.None)}
       />
       {errorMessage}
     </div>

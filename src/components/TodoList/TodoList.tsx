@@ -2,21 +2,20 @@ import React from 'react';
 import { Todo } from '../../types/Todo';
 import { deleteTodo } from '../../api/todos';
 import { TodoItem } from '../TodoItem/TodoItem';
+import { ErrorMessages } from '../../types/ErrorMessages';
 
 interface Props {
   todoList: Todo[];
-  todoData: Todo[];
   tempTodo: Todo | null;
   deletedTodo: number[];
   setTodoData: React.Dispatch<React.SetStateAction<Todo[]>>;
   setDeletedTodo: React.Dispatch<React.SetStateAction<number[]>>;
-  setErrorMessage: (msg: string) => void;
+  setErrorMessage: (value: ErrorMessages) => void;
   inputRef: React.RefObject<HTMLInputElement>;
 }
 
 export const TodoList: React.FC<Props> = ({
   todoList,
-  todoData,
   tempTodo,
   deletedTodo,
   setTodoData,
@@ -29,7 +28,7 @@ export const TodoList: React.FC<Props> = ({
 
     deleteTodo(id)
       .then(() => setTodoData(cur => cur.filter(todo => todo.id !== id)))
-      .catch(() => setErrorMessage('Unable to delete a todo'))
+      .catch(() => setErrorMessage(ErrorMessages.OnDelete))
       .finally(() => {
         setDeletedTodo(cur => cur.filter(curId => curId !== id));
         setTimeout(() => {
@@ -39,28 +38,20 @@ export const TodoList: React.FC<Props> = ({
   };
 
   const handleSwitchStatus = (currentId: number) => {
-    const index = todoData.findIndex(todo => todo.id === currentId);
+    setTodoData(current =>
+      current.map(todo =>
+        todo.id === currentId ? { ...todo, completed: !todo.completed } : todo,
+      ),
+    );
 
-    const { id, userId, title, completed } = todoData[index];
-    const replacer = {
-      id,
-      userId,
-      title,
-      completed: completed ? false : true,
-    };
-
-    setTodoData(current => {
-      const updated = [...current];
-
-      updated.splice(index, 1, replacer);
-
-      return updated;
-    });
+    // if (false) {
+    //   createErrorMessage(ErrorMessages.OnPatch);
+    // }
   };
 
   // const handleUpdate = () => {
   //   if (false) {
-  //     createErrorMessage('Unable to update a todo');
+  //     createErrorMessage(ErrorMessages.OnPatch);
   //   }
 
   //   patchTodo();
